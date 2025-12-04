@@ -63,3 +63,4 @@ def save_model(layers, filepath="./weights/"):
 if save_weights:
     save_model(layers)
 print(f"Predicted move index: {predicted_move}")
+
