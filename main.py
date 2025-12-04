@@ -1,1 +1,4 @@
-#ich teste
+#ich tes
+from NeuralNetwork.rnn import main
+ 
+
