@@ -1,29 +1,45 @@
-from numpy import np
-
-global current_Loss
+import numpy as np
 
 
+def train_on_data_set(model, current_position, correct_move, learning_rate):
 
-def backpropagate(model, model_gradients, learning_rate):
-    for i, layer in enumerate(model.layers):
-        for j, neuron in enumerate(layer.neurons):
-            # Update weights and biases using computed gradients
-            neuron.weights -= learning_rate * model_gradients.get(f'layer_{i}_neuron_{j}_weights', 0)
-            neuron.bias -= learning_rate * model_gradients.get(f'layer_{i}_neuron_{j}_bias', 0)
-    return model_gradients
+    # Forward pass (speichere alle Aktivierungen)
+    activations = [current_position]
+    for layer in model.layers:
+        activations.append(layer.forward(activations[-1]))
     
-
-
-def train_on_data_set(model, current_postion, correct_move, learning_rate):
-    def loss_function(predicted, correct):
-        return -np.sum(correct * np.log(predicted + 1e-15))  # Cross-entropy loss with epsilon for stability   
-
-    # Forward pass
-    # Get model predictions
-    # Assuming model has a method 'predict' that returns probabilities
-    predicted_move = model.predict(current_postion) 
-    loss = loss_function(predicted_move[1], correct_move)
-
-
+    # Softmax auf Output anwenden
+    output = activations[-1]
+    exps = np.exp(output - np.max(output))
+    probs = exps / np.sum(exps)
+    
+    # Loss berechnen (Cross-Entropy)
+    loss = -np.sum(correct_move * np.log(probs + 1e-15))
+    
+    # Backpropagation
+    # Gradient nach Softmax (Cross-Entropy + Softmax)
+    grad = probs - correct_move
+    
+    # Durch alle Layer rückwärts
+    for i in range(len(model.layers) - 1, -1, -1):
+        layer = model.layers[i]
+        layer_input = activations[i]
+        new_grad = np.zeros_like(layer_input)
+        
+        for j, neuron in enumerate(layer.neurons):
+            # Backprop durch tanh
+            tanh_grad = neuron.tanh_derivative(neuron.z)
+            delta = grad[j] * tanh_grad
+            
+            # Gewichte und Bias updaten
+            neuron.weights -= learning_rate * delta * layer_input
+            neuron.bias -= learning_rate * delta
+            
+            # Gradient für vorherige Layer
+            new_grad += delta * neuron.weights
+        
+        grad = new_grad
+    
+    return loss
 
             
