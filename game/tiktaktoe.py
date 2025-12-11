@@ -3,9 +3,7 @@ import numpy as np
 class TicTacToe:
     def __init__(self):
         # Spielfeld initialisieren ← NEU
-        self.board = [[0, 0, 0],
-                      [0, 0, 0],
-                      [0, 0, 0]]
+        self.board = np.zeros((3, 3), dtype=object)  # ← GEÄNDERT (NumPy statt Liste)
         self.current_player = "1"  # ← NEU
 
     def print_board(self):
@@ -17,23 +15,26 @@ class TicTacToe:
     def check_win(self):
         # Reihen prüfen
         for row in self.board:
-            if row[0] == row[1] == row[2] and isinstance(row[0], str):  # ← GEÄNDERT
+            if isinstance(row[0], str) and np.all(row == row[0]):  # ← GEÄNDERT (NumPy Vergleich)
                 return "win"  # ← GEÄNDERT
 
         # Spalten prüfen
         for col in range(3):
-            if self.board[0][col] == self.board[1][col] == self.board[2][col] and isinstance(self.board[0][col], str):  # ← GEÄNDERT
+            column = self.board[:, col]  # ← GEÄNDERT (NumPy Spaltenzugriff)
+            if isinstance(column[0], str) and np.all(column == column[0]):  # ← GEÄNDERT
                 return "win"  # ← GEÄNDERT
 
         # Diagonalen prüfen
-        if self.board[0][0] == self.board[1][1] == self.board[2][2] and isinstance(self.board[0][0], str):  # ← GEÄNDERT
+        diag1 = np.diag(self.board)  # ← GEÄNDERT (NumPy diag)
+        if isinstance(diag1[0], str) and np.all(diag1 == diag1[0]):  # ← GEÄNDERT
             return "win"  # ← GEÄNDERT
 
-        if self.board[0][2] == self.board[1][1] == self.board[2][0] and isinstance(self.board[0][2], str):  # ← GEÄNDERT
+        diag2 = np.diag(np.fliplr(self.board))  # ← GEÄNDERT (NumPy umgedrehte Diagonale)
+        if isinstance(diag2[0], str) and np.all(diag2 == diag2[0]):  # ← GEÄNDERT
             return "win"  # ← GEÄNDERT
 
         # Unentschieden prüfen
-        full = all(not isinstance(val, int) for row in self.board for val in row)  # ← GEÄNDERT
+        full = not np.any(self.board == 0)  # ← GEÄNDERT (NumPy any)
         if full:
             return "draw"  # ← NEU
 
@@ -59,12 +60,12 @@ class TicTacToe:
             col = choice % 3
 
             # prüfen ob das Feld frei ist
-            if self.board[row][col] in ["1", "-1"]:
+            if self.board[row, col] in ["1", "-1"]:
                 print("Dieses Feld ist schon belegt!")
                 continue
 
             # setzen
-            self.board[row][col] = self.current_player  # ← GEÄNDERT
+            self.board[row, col] = self.current_player  # ← GEÄNDERT
 
             # prüfen Sieg / Unentschieden
             result = self.check_win()  # ← GEÄNDERT
@@ -85,7 +86,6 @@ class TicTacToe:
 # Start ← NEU
 game = TicTacToe()  # ← NEU
 game.play()  # ← NEU
-
 
 #bei markierung durch geändert und durch neu, Quelle durch chatgpt:
 
