@@ -1,96 +1,90 @@
 import numpy as np
 
-field = [[0, 1, 2],
-         [3, 4, 5],
-         [6, 7, 8]]
+class TicTacToe:
+    def __init__(self):
+        # Spielfeld initialisieren ← NEU
+        self.board = [[0, 1, 2],
+                      [3, 4, 5],
+                      [6, 7, 8]]
+        self.current_player = "x"  # ← NEU
 
+    def print_board(self):
+        print()
+        for row in self.board:
+            print(" | ".join(str(x) for x in row))
+        print()
 
-def print_field(board):
-    print()
-    for row in board:
-        print(" | ".join(str(x) for x in row))
-    print()
+    def check_win(self):
+        # Reihen prüfen
+        for row in self.board:
+            if row[0] == row[1] == row[2] and isinstance(row[0], str):  # ← GEÄNDERT
+                return "win"  # ← GEÄNDERT
 
+        # Spalten prüfen
+        for col in range(3):
+            if self.board[0][col] == self.board[1][col] == self.board[2][col] and isinstance(self.board[0][col], str):  # ← GEÄNDERT
+                return "win"  # ← GEÄNDERT
 
-def check_win(board):
-    # Reihen prüfen
-    for row in board:
-        if row[0] == row[1] == row[2] and isinstance(row[0], str):  # ← GEÄNDERT
+        # Diagonalen prüfen
+        if self.board[0][0] == self.board[1][1] == self.board[2][2] and isinstance(self.board[0][0], str):  # ← GEÄNDERT
             return "win"  # ← GEÄNDERT
 
-    # Spalten prüfen
-    for col in range(3):
-        if board[0][col] == board[1][col] == board[2][col] and isinstance(board[0][col], str):  # ← GEÄNDERT
-            return "win"
+        if self.board[0][2] == self.board[1][1] == self.board[2][0] and isinstance(self.board[0][2], str):  # ← GEÄNDERT
+            return "win"  # ← GEÄNDERT
 
-    # Diagonalen prüfen
-    if board[0][0] == board[1][1] == board[2][2] and isinstance(board[0][0], str):  # ← GEÄNDERT
-        return "win"
+        # Unentschieden prüfen
+        full = all(not isinstance(val, int) for row in self.board for val in row)  # ← GEÄNDERT
+        if full:
+            return "draw"  # ← NEU
 
-    if board[0][2] == board[1][1] == board[2][0] and isinstance(board[0][2], str):  # ← GEÄNDERT
-        return "win"
+        return False  # ← GEÄNDERT
 
-    # Unentschieden prüfen
-    full = True
-    for row in board:
-        for val in row:
-            if isinstance(val, int):  # ← GEÄNDERT
-                full = False
+    def play(self):
+        while True:
+            self.print_board()
+            print(f"Spieler {self.current_player} ist dran.")
 
-    if full:
-        return "draw"  # ← NEU
+            # Eingabe
+            try:
+                choice = int(input("Wähle ein Feld (0-8): "))
+            except ValueError:
+                print("Bitte eine Zahl von 0 bis 8 eingeben!")
+                continue
 
-    return False
+            if choice < 0 or choice > 8:
+                print("Ungültige Zahl! Wähle 0 bis 8.")
+                continue
 
+            row = choice // 3
+            col = choice % 3
 
-def play(board):
-    current = "x"
+            # prüfen ob das Feld frei ist
+            if self.board[row][col] in ["x", "o"]:
+                print("Dieses Feld ist schon belegt!")
+                continue
 
-    while True:
-        print_field(board)
-        print(f"Spieler {current} ist dran.")
+            # setzen
+            self.board[row][col] = self.current_player  # ← GEÄNDERT
 
-        # Eingabe
-        try:
-            choice = int(input("Wähle ein Feld (0-8): "))
-        except ValueError:
-            print("Bitte eine Zahl von 0 bis 8 eingeben!")
-            continue
+            # prüfen Sieg / Unentschieden
+            result = self.check_win()  # ← GEÄNDERT
 
-        if choice < 0 or choice > 8:
-            print("Ungültige Zahl! Wähle 0 bis 8.")
-            continue
+            if result == "win":  # ← GEÄNDERT
+                self.print_board()
+                print(f"Spieler {self.current_player} hat gewonnen!")  # ← GEÄNDERT
+                break
+            if result == "draw":  # ← GEÄNDERT
+                self.print_board()
+                print("Unentschieden!")  # ← GEÄNDERT
+                break
 
-        row = choice // 3
-        col = choice % 3
-
-        # prüfen ob das Feld frei ist
-        if board[row][col] in ["x", "o"]:
-            print("Dieses Feld ist schon belegt!")
-            continue
-
-        # setzen
-        board[row][col] = current
-
-        # prüfen Sieg / Unentschieden
-        result = check_win(board)  # ← GEÄNDERT
-
-        if result == "win":  # ← GEÄNDERT
-            print_field(board)
-            print(f"Spieler {current} hat gewonnen!")  # ← GEÄNDERT
-            break
-        if result == "draw":  # ← GEÄNDERT
-            print_field(board)
-            print("Unentschieden!")  # ← GEÄNDERT
-            break
-
-        # Spieler wechseln
-        current = "o" if current == "x" else "x"
+            # Spieler wechseln
+            self.current_player = "o" if self.current_player == "x" else "x"  # ← GEÄNDERT
 
 
-# Start
-play(field)
-
+# Start ← NEU
+game = TicTacToe()  # ← NEU
+game.play()  # ← NEU
 
 
 #bei markierung durch geändert und durch neu, Quelle durch chatgpt:
