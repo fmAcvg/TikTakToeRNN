@@ -3,10 +3,10 @@ import numpy as np
 class TicTacToe:
     def __init__(self):
         # Spielfeld initialisieren ← NEU
-        self.board = [[0, 1, 2],
-                      [3, 4, 5],
-                      [6, 7, 8]]
-        self.current_player = "x"  # ← NEU
+        self.board = [[0, 0, 0],
+                      [0, 0, 0],
+                      [0, 0, 0]]
+        self.current_player = "1"  # ← NEU
 
     def print_board(self):
         print()
@@ -59,7 +59,7 @@ class TicTacToe:
             col = choice % 3
 
             # prüfen ob das Feld frei ist
-            if self.board[row][col] in ["x", "o"]:
+            if self.board[row][col] in ["1", "-1"]:
                 print("Dieses Feld ist schon belegt!")
                 continue
 
@@ -79,7 +79,7 @@ class TicTacToe:
                 break
 
             # Spieler wechseln
-            self.current_player = "o" if self.current_player == "x" else "x"  # ← GEÄNDERT
+            self.current_player = "-1" if self.current_player == "1" else "1"  # ← GEÄNDERT
 
 
 # Start ← NEU
