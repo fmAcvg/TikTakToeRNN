@@ -14,8 +14,6 @@ class Neuron:
         return self.output
     
 
-print("Neuron module loaded.")
-    
 
 
 

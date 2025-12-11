@@ -2,7 +2,7 @@
 from .neuron import Neuron
 
 
-class Network:
+class Layer:
     def __init__(self, neurons):
         self.neurons = neurons
     
@@ -13,4 +13,3 @@ class Network:
             outputs.append(output)
         return outputs
 
-print("Network module loaded.")
