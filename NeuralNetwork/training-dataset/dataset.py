@@ -1,3 +1,4 @@
+#lenny
 import numpy as np
 from tqdm import tqdm
 
@@ -106,3 +107,23 @@ if __name__ == "__main__":
     print("Datensatz fertig. Anzahl Boards:", len(dataset))
     np.save("tictactoe_dataset.npy", dataset)
     print("Dataset gespeichert als tictactoe_dataset.npy")
+
+
+
+
+
+
+#Minimax dataset generator komplett von chatgpt erstellt mit diesem Prompt:
+
+'''„Erstelle ein vollständiges, eigenständiges Python-Skript zur Generierung eines TicTacToe-Datensatzes 
+mithilfe des Minimax-Algorithmus.Das Spielfeld soll als NumPy-Array mit 9 Feldern dargestellt werden 
+(1 = eigener Spieler, -1 = Gegner, 0 = leer).
+Es sollen ausschließlich gültige Spielstände erzeugt werden.
+Für jeden Spielstand soll mit Minimax inklusive Alpha-Beta-Pruning der beste nächste Zug für Spieler 1 
+berechnet werden.Board und bester Zug sollen gemeinsam in einem NumPy-Array gespeichert werden.
+Die Generierung soll nach einer festen Anzahl von Spielständen abbrechen und den Fortschritt live anzeigen.
+Am Ende soll der Datensatz als .npy-Datei gespeichert werden.“'''
+
+
+
+
