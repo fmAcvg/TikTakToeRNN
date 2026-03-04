@@ -53,7 +53,15 @@ def minimax(board, player, alpha=-999, beta=999):
         return min_eval
 
 
+def get_current_player(board):
+    """Bestimmt, wer am Zug ist: 1=X, -1=O (X beginnt)."""
+    x_count = np.sum(board == 1)
+    o_count = np.sum(board == -1)
+    return 1 if x_count == o_count else -1
+
+
 def find_best_move(board):
+    """Bester Zug für Spieler 1 (X)."""
     best_value = -999
     best_move = None
     for i in range(9):
@@ -62,6 +70,24 @@ def find_best_move(board):
             new_board[i] = 1
             value = minimax(new_board, -1)
             if value > best_value:
+                best_value = value
+                best_move = i
+    return best_move
+
+
+def find_best_move_for_player(board, player):
+    """Bester Zug für den am Zug befindlichen Spieler (1=X, -1=O)."""
+    if player == 1:
+        return find_best_move(board)
+    # Spieler 2 (O): minimierender Spieler
+    best_value = 999
+    best_move = None
+    for i in range(9):
+        if board[i] == 0:
+            new_board = board.copy()
+            new_board[i] = -1
+            value = minimax(new_board, 1)
+            if value < best_value:
                 best_value = value
                 best_move = i
     return best_move
@@ -84,7 +110,7 @@ def generate_dataset(max_boards=5000):
         if winner != 0 or np.all(board != 0):
             continue
 
-        best_move = find_best_move(board)
+        best_move = find_best_move_for_player(board, player)
         data.append(np.append(board, best_move))
         pbar.update(1)
 
@@ -100,15 +126,26 @@ def generate_dataset(max_boards=5000):
 # -----------------------------
 if __name__ == "__main__":
     import os
+    import argparse
     
-    MAX_BOARDS = 1000
-    dataset = generate_dataset(MAX_BOARDS)
+    parser = argparse.ArgumentParser(description="Tic-Tac-Toe Datensatz generieren")
+    parser.add_argument(
+        "-s", "--size",
+        type=int,
+        default=1000,
+        help="Anzahl der zu generierenden Boards (Standard: 1000). Beispiele: 1000, 250000"
+    )
+    args = parser.parse_args()
+    
+    dataset = generate_dataset(max_boards=args.size)
     num_samples = len(dataset)
     print("Datensatz fertig. Anzahl Boards:", num_samples)
     
-    # In training-dataset Ordner speichern
+    # In datasets-Ordner speichern
+    datasets_dir = "datasets"
+    os.makedirs(datasets_dir, exist_ok=True)
     filename = f"tictactoe_dataset_{num_samples}.npy"
-    filepath = os.path.join(filename)
+    filepath = os.path.join(datasets_dir, filename)
     np.save(filepath, dataset)
     print(f"Dataset gespeichert als {filepath}")
 

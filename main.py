@@ -13,7 +13,7 @@ from NeuralNetwork.rnn.Layer import Layer
 
 def get_available_datasets():
     """Gibt eine Liste aller verfügbaren Datasets zurück"""
-    dataset_dir = "NeuralNetwork/training-dataset"
+    dataset_dir = "datasets"
     
     # Suche nach allen Datasets mit Pattern tictactoe_dataset_*.npy
     pattern = os.path.join(dataset_dir, "tictactoe_dataset_*.npy")
@@ -122,15 +122,11 @@ def load_dataset(dataset_path=None, use_augmentation=False):
     return boards, one_hot_moves
 
 def get_available_models():
-    """Gibt eine Liste aller verfügbaren Modelle zurück"""
-    # Suche im Root-Ordner und im models-Ordner
-    root_pattern = "model_*.npz"
-    models_pattern = "models/model_*.npz"
+    """Gibt eine Liste aller verfügbaren Modelle zurück (nur aus dem models-Ordner)"""
+    models_dir = "models"
+    models_pattern = os.path.join(models_dir, "model_*.npz")
     
-    root_models = glob.glob(root_pattern)
-    models_models = glob.glob(models_pattern)
-    
-    all_models = root_models + models_models
+    all_models = glob.glob(models_pattern)
     
     # Sortiere nach Modifikationszeit (neueste zuerst)
     all_models.sort(key=os.path.getmtime, reverse=True)
@@ -241,24 +237,22 @@ def test_model_on_random_boards(model, num_test_boards=100):
     """Testet ein Modell auf zufälligen Spielständen"""
     test_boards = generate_test_boards(num_test_boards)
     
-    # Verwende Minimax um die optimalen Züge zu finden
     import importlib.util
-    dataset_path = "NeuralNetwork/training-dataset/dataset.py"
-    spec = importlib.util.spec_from_file_location("dataset", dataset_path)
+    spec = importlib.util.spec_from_file_location("dataset", "NeuralNetwork/training-dataset/dataset.py")
     dataset_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(dataset_module)
-    find_best_move = dataset_module.find_best_move
+    find_best_move_for_player = dataset_module.find_best_move_for_player
+    get_current_player = dataset_module.get_current_player
     
     correct_predictions = 0
     total_tests = 0
     
     for board in test_boards:
-        # Prüfe ob Board gültig ist
         if not is_valid_board(board):
             continue
         
-        # Optimalen Zug finden
-        optimal_move = find_best_move(board)
+        player = get_current_player(board)
+        optimal_move = find_best_move_for_player(board, player)
         if optimal_move is None:
             continue
         
@@ -274,40 +268,34 @@ def test_model_on_random_boards(model, num_test_boards=100):
 
 def test_on_realistic_games(model, num_test_boards=100):
     """Testet ein Modell auf realistischen Spielverläufen (wie im Training)"""
-    # Verwende Minimax um die optimalen Züge zu finden
     import importlib.util
-    dataset_path = "NeuralNetwork/training-dataset/dataset.py"
-    spec = importlib.util.spec_from_file_location("dataset", dataset_path)
+    spec = importlib.util.spec_from_file_location("dataset", "NeuralNetwork/training-dataset/dataset.py")
     dataset_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(dataset_module)
-    find_best_move = dataset_module.find_best_move
+    find_best_move_for_player = dataset_module.find_best_move_for_player
     get_next_boards = dataset_module.get_next_boards
     check_winner = dataset_module.check_winner
     
-    # Generiere realistische Spielverläufe (BFS-ähnlich wie im Dataset)
-    test_boards = []
+    # Generiere realistische Spielverläufe (BFS) - speichere (board, player)
+    test_states = []
     start_board = np.zeros(9, dtype=int)
-    states = [(start_board, 1)]  # Liste von (Board, player_to_move)
+    states = [(start_board, 1)]
     
-    while states and len(test_boards) < num_test_boards:
-        board, player = states.pop(0)  # BFS: pop(0) statt pop()
+    while states and len(test_states) < num_test_boards:
+        board, player = states.pop(0)
         winner = check_winner(board)
         if winner != 0 or np.all(board != 0):
             continue
         
-        # Board zum Testen hinzufügen
-        test_boards.append(board.copy())
-        
-        # Nächste Zustände hinzufügen
+        test_states.append((board.copy(), player))
         for next_board in get_next_boards(board, player):
             states.append((next_board, -player))
     
     correct_predictions = 0
     total_tests = 0
     
-    for board in test_boards:
-        # Optimalen Zug finden
-        optimal_move = find_best_move(board)
+    for board, player in test_states:
+        optimal_move = find_best_move_for_player(board, player)
         if optimal_move is None:
             continue
         
@@ -328,10 +316,11 @@ class TrainingGUI:
         self.root.geometry("800x600")
         
         self.is_training = False
+        self.stop_training = False
         self.loss_history = []
-        self.accuracy_history = []
-        self.val_loss_history = []
-        self.val_accuracy_history = []
+        self.train_accuracy_history = []
+        self.test_loss_history = []
+        self.test_accuracy_history = []
         self.epoch_history = []
         self.current_model = None
         
@@ -371,27 +360,25 @@ class TrainingGUI:
         
         # Erste Zeile: Epochen, Lernrate, Button
         ttk.Label(input_frame, text="Epochen:").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
-        self.epochs_var = tk.StringVar(value="50")
+        self.epochs_var = tk.StringVar(value="150")
         ttk.Entry(input_frame, textvariable=self.epochs_var, width=10).grid(row=0, column=1, padx=5, pady=5)
         
         ttk.Label(input_frame, text="Lernrate:").grid(row=0, column=2, padx=5, pady=5, sticky=tk.W)
-        self.lr_var = tk.StringVar(value="0.003")
+        self.lr_var = tk.StringVar(value="0.01")
         ttk.Entry(input_frame, textvariable=self.lr_var, width=10).grid(row=0, column=3, padx=5, pady=5)
         
-        ttk.Label(input_frame, text="Weight Decay:").grid(row=0, column=4, padx=5, pady=5, sticky=tk.W)
-        self.weight_decay_var = tk.StringVar(value="0.008")
-        ttk.Entry(input_frame, textvariable=self.weight_decay_var, width=10).grid(row=0, column=5, padx=5, pady=5)
-        
         self.start_button = ttk.Button(input_frame, text="Training starten", command=self.start_training)
-        self.start_button.grid(row=0, column=6, padx=10, pady=5)
+        self.start_button.grid(row=0, column=4, padx=5, pady=5)
+        self.stop_button = ttk.Button(input_frame, text="Training stoppen", command=self.stop_training_request, state="disabled")
+        self.stop_button.grid(row=0, column=5, padx=5, pady=5)
         
         # Zweite Zeile: Hidden-Layer Anzahl, Neuronen pro Layer
         ttk.Label(input_frame, text="Anzahl Hidden-Layer:").grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
-        self.num_layers_var = tk.StringVar(value="2")
+        self.num_layers_var = tk.StringVar(value="3")
         ttk.Entry(input_frame, textvariable=self.num_layers_var, width=10).grid(row=1, column=1, padx=5, pady=5)
         
         ttk.Label(input_frame, text="Neuronen pro Hidden-Layer:").grid(row=1, column=2, padx=5, pady=5, sticky=tk.W)
-        self.hidden_neurons_var = tk.StringVar(value="18")
+        self.hidden_neurons_var = tk.StringVar(value="32")
         ttk.Entry(input_frame, textvariable=self.hidden_neurons_var, width=10).grid(row=1, column=3, padx=5, pady=5)
         
         # Dritte Zeile: Dataset auswählen
@@ -405,11 +392,6 @@ class TrainingGUI:
         self.dataset_combo.grid(row=2, column=1, columnspan=2, padx=5, pady=5, sticky=tk.W)
         refresh_button = ttk.Button(input_frame, text="Aktualisieren", command=self.refresh_datasets)
         refresh_button.grid(row=2, column=3, padx=5, pady=5)
-        
-        # Data Augmentation Checkbox
-        self.use_augmentation_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(input_frame, text="Data Augmentation (8x mehr Daten)", 
-                       variable=self.use_augmentation_var).grid(row=2, column=4, padx=5, pady=5, sticky=tk.W)
         
         # Vierte Zeile: Modell auswählen und testen
         ttk.Label(input_frame, text="Modell:").grid(row=3, column=0, padx=5, pady=5, sticky=tk.W)
@@ -455,27 +437,28 @@ class TrainingGUI:
             self.ax_loss.clear()
             self.ax_acc.clear()
             
-            # Loss plotten (Train und Validation)
+            # Loss plotten (Train und Test)
             self.ax_loss.plot(self.epoch_history, self.loss_history, 'b-', label='Train Loss', linewidth=2)
-            if len(self.val_loss_history) > 0:
-                self.ax_loss.plot(self.epoch_history, self.val_loss_history, 'b--', label='Val Loss', linewidth=2)
+            if len(self.test_loss_history) > 0:
+                self.ax_loss.plot(self.epoch_history, self.test_loss_history, 'b--', label='Test Loss', linewidth=2)
             self.ax_loss.set_xlabel("Epoche")
             self.ax_loss.set_ylabel("Loss", color='b')
             self.ax_loss.tick_params(axis='y', labelcolor='b')
             self.ax_loss.grid(True)
             
-            # Accuracy plotten (Validation)
-            if len(self.val_accuracy_history) > 0:
-                self.ax_acc.plot(self.epoch_history, self.val_accuracy_history, 'r-', label='Val Accuracy', linewidth=2)
+            # Train + Test Accuracy plotten (Overfitting sichtbar)
+            if len(self.train_accuracy_history) > 0:
+                self.ax_acc.plot(self.epoch_history, self.train_accuracy_history, 'g-', label='Train Acc', linewidth=2)
+            if len(self.test_accuracy_history) > 0:
+                self.ax_acc.plot(self.epoch_history, self.test_accuracy_history, 'r-', label='Test Acc', linewidth=2)
             self.ax_acc.set_ylabel("Accuracy (%)", color='r')
             self.ax_acc.tick_params(axis='y', labelcolor='r')
             
-            # Legende kombinieren
             lines1, labels1 = self.ax_loss.get_legend_handles_labels()
             lines2, labels2 = self.ax_acc.get_legend_handles_labels()
             self.ax_loss.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
             
-            self.fig.suptitle("Training Progress: Train/Validation Loss & Validation Accuracy", fontsize=12)
+            self.fig.suptitle("Train/Test Loss & Train/Test Accuracy (Overfitting)", fontsize=12)
             self.canvas.draw()
     
     def setup_play_tab(self):
@@ -494,11 +477,11 @@ class TrainingGUI:
         self.play_model_combo.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
         
         ttk.Label(model_frame, text="Hidden-Layer:").grid(row=0, column=2, padx=5, pady=5, sticky=tk.W)
-        self.play_num_layers_var = tk.StringVar(value="2")
+        self.play_num_layers_var = tk.StringVar(value="3")
         ttk.Entry(model_frame, textvariable=self.play_num_layers_var, width=5).grid(row=0, column=3, padx=5, pady=5)
         
         ttk.Label(model_frame, text="Neuronen:").grid(row=0, column=4, padx=5, pady=5, sticky=tk.W)
-        self.play_hidden_neurons_var = tk.StringVar(value="18")
+        self.play_hidden_neurons_var = tk.StringVar(value="32")
         ttk.Entry(model_frame, textvariable=self.play_hidden_neurons_var, width=5).grid(row=0, column=5, padx=5, pady=5)
         
         self.load_model_button = ttk.Button(model_frame, text="Modell laden", command=self.load_game_model)
@@ -702,7 +685,6 @@ class TrainingGUI:
         try:
             epochs = int(self.epochs_var.get())
             learning_rate = float(self.lr_var.get())
-            weight_decay = float(self.weight_decay_var.get())
             num_hidden_layers = int(self.num_layers_var.get())
             hidden_neurons = int(self.hidden_neurons_var.get())
             
@@ -715,19 +697,25 @@ class TrainingGUI:
             return
         
         self.is_training = True
+        self.stop_training = False
         self.start_button.config(state="disabled")
+        self.stop_button.config(state="normal")
         self.loss_history = []
-        self.accuracy_history = []
-        self.val_loss_history = []
-        self.val_accuracy_history = []
+        self.train_accuracy_history = []
+        self.test_loss_history = []
+        self.test_accuracy_history = []
         self.epoch_history = []
         
         # Training in separatem Thread starten
-        thread = threading.Thread(target=self.train_model, args=(epochs, learning_rate, weight_decay, num_hidden_layers, hidden_neurons))
+        thread = threading.Thread(target=self.train_model, args=(epochs, learning_rate, num_hidden_layers, hidden_neurons))
         thread.daemon = True
         thread.start()
     
-    def train_model(self, epochs, learning_rate, weight_decay, num_hidden_layers, hidden_neurons):
+    def stop_training_request(self):
+        """Setzt das Stopp-Flag, damit die Trainingsschleife abbricht"""
+        self.stop_training = True
+    
+    def train_model(self, epochs, learning_rate, num_hidden_layers, hidden_neurons):
         try:
             self.root.after(0, self.status_label.config, {"text": "Lade Dataset...", "foreground": "blue"})
             
@@ -741,24 +729,23 @@ class TrainingGUI:
                 except (ValueError, IndexError):
                     pass
             
-            use_augmentation = self.use_augmentation_var.get()
-            boards, correct_moves = load_dataset(dataset_path, use_augmentation=use_augmentation)
+            boards, correct_moves = load_dataset(dataset_path, use_augmentation=False)
             if boards is None:
                 self.root.after(0, self.status_label.config, {"text": "Fehler: Dataset nicht gefunden", "foreground": "red"})
                 return
             
-            # Train/Validation Split (80/20)
+            # Train/Test Split (80/20)
             split_idx = int(len(boards) * 0.8)
             indices = np.random.permutation(len(boards))
             train_indices = indices[:split_idx]
-            val_indices = indices[split_idx:]
+            test_indices = indices[split_idx:]
             
             train_boards = boards[train_indices]
             train_moves = correct_moves[train_indices]
-            val_boards = boards[val_indices]
-            val_moves = correct_moves[val_indices]
+            test_boards = boards[test_indices]
+            test_moves = correct_moves[test_indices]
             
-            self.root.after(0, self.status_label.config, {"text": f"Dataset geladen: {len(train_boards)} Train, {len(val_boards)} Validation", "foreground": "blue"})
+            self.root.after(0, self.status_label.config, {"text": f"Dataset geladen: {len(train_boards)} Train, {len(test_boards)} Test", "foreground": "blue"})
             
             # Netzwerk dynamisch erstellen
             input_size = 9
@@ -792,6 +779,9 @@ class TrainingGUI:
             
             # Training
             for epoch in range(epochs):
+                if self.stop_training:
+                    break
+                
                 # Learning Rate Decay: Exponential decay
                 current_lr = initial_lr * (0.95 ** epoch)
                 
@@ -800,75 +790,82 @@ class TrainingGUI:
                 train_boards_shuffled = train_boards[train_indices_shuffled]
                 train_moves_shuffled = train_moves[train_indices_shuffled]
                 
-                # Training auf Train-Set
+                # Training auf Train-Set (train_on_data_set liefert loss + korrekt-Flag für Train-Accuracy)
                 train_loss = 0
-                for i in range(len(train_boards_shuffled)):
-                    loss = train_on_data_set(model, train_boards_shuffled[i], train_moves_shuffled[i], current_lr, weight_decay)
+                train_correct = 0
+                n_train = len(train_boards_shuffled)
+                for i in range(n_train):
+                    loss, correct = train_on_data_set(model, train_boards_shuffled[i], train_moves_shuffled[i], current_lr, weight_decay=0.0)
                     train_loss += loss
+                    train_correct += int(correct)
                     
-                    # Status-Update nur alle 100 Samples (optional, für Fortschrittsanzeige)
-                    if (i + 1) % 100 == 0:
-                        current_avg_loss = train_loss / (i + 1)
+                    # Status-Update nur alle 500 Samples (weniger UI-Overhead)
+                    if (i + 1) % 500 == 0:
+                        if self.stop_training:
+                            break
+                        cur_loss = train_loss / (i + 1)
+                        cur_acc = train_correct / (i + 1) * 100
                         self.root.after(0, self.status_label.config, 
-                                      {"text": f"Training läuft... ({epoch + 1}/{epochs}) | Sample {i + 1}/{len(train_boards)} | Train Loss: {current_avg_loss:.4f}", 
+                                      {"text": f"Epoche {epoch + 1}/{epochs} | {i + 1}/{n_train} | Loss: {cur_loss:.3f} | Train Acc: {cur_acc:.1f}%", 
                                        "foreground": "blue"})
                 
-                # Train-Loss berechnen
-                avg_train_loss = train_loss / len(train_boards_shuffled)
+                if self.stop_training:
+                    break
                 
-                # Validation: Loss und Accuracy auf Validation-Set berechnen
-                val_loss = 0
-                val_correct_predictions = 0
-                for i in range(len(val_boards)):
-                    # Forward pass für Loss
-                    activations = [val_boards[i]]
-                    for layer in model.layers:
-                        activations.append(layer.forward(activations[-1]))
-                    output = activations[-1]
+                avg_train_loss = train_loss / n_train
+                train_accuracy = train_correct / n_train * 100
+                
+                # Test: Loss und Accuracy (1 Forward pro Sample, argmax für Accuracy)
+                n_test = len(test_boards)
+                test_loss = 0
+                test_correct = 0
+                for i in range(n_test):
+                    output = model.forward(test_boards[i])
                     exps = np.exp(output - np.max(output))
                     probs = exps / np.sum(exps)
-                    loss = -np.sum(val_moves[i] * np.log(probs + 1e-15))
-                    val_loss += loss
-                    
-                    # Accuracy berechnen
-                    predicted_move, _ = model.predict(val_boards[i])
-                    correct_move_idx = np.argmax(val_moves[i])
-                    if predicted_move == correct_move_idx:
-                        val_correct_predictions += 1
+                    test_loss -= np.sum(test_moves[i] * np.log(probs + 1e-15))
+                    if np.argmax(output) == np.argmax(test_moves[i]):
+                        test_correct += 1
                 
-                avg_val_loss = val_loss / len(val_boards)
-                val_accuracy = val_correct_predictions / len(val_boards) * 100
+                avg_test_loss = test_loss / n_test
+                test_accuracy = test_correct / n_test * 100
                 
-                # Daten für Chart speichern (nur pro Epoche)
                 self.epoch_history.append(epoch + 1)
                 self.loss_history.append(avg_train_loss)
-                self.val_loss_history.append(avg_val_loss)
-                self.accuracy_history.append(val_accuracy)  # Validation Accuracy
-                self.val_accuracy_history.append(val_accuracy)
+                self.train_accuracy_history.append(train_accuracy)
+                self.test_loss_history.append(avg_test_loss)
+                self.test_accuracy_history.append(test_accuracy)
                 
-                # UI-Aktualisierung nur am Ende der Epoche
-                self.root.after(0, self.update_status, epoch + 1, epochs, avg_train_loss, val_accuracy, avg_val_loss)
+                self.root.after(0, self.update_status, epoch + 1, epochs, avg_train_loss, train_accuracy, avg_test_loss, test_accuracy)
                 self.root.after(0, self.update_chart)
             
-            # Modell speichern
+            # Bei Stopp-Abruch: keine weiteren Epochen
+            if self.stop_training:
+                self.root.after(0, self.status_label.config, {"text": f"Training gestoppt nach {len(self.epoch_history)} Epochen.", "foreground": "orange"})
+            
+            # Modell speichern (auch bei vorzeitigem Stopp)
             self.root.after(0, self.status_label.config, {"text": "Speichere Modell...", "foreground": "blue"})
             os.makedirs("models", exist_ok=True)
             model.save_model("models/")
             
-            # Aktuelles Modell speichern für späteres Speichern im Root
+            # Aktuelles Modell speichern für späteres Speichern im models-Ordner
             self.current_model = model
             
-            self.root.after(0, self.status_label.config, {"text": f"Training abgeschlossen! Train Loss: {self.loss_history[-1]:.4f}, Val Loss: {self.val_loss_history[-1]:.4f}, Val Accuracy: {self.val_accuracy_history[-1]:.2f}%", "foreground": "green"})
+            if not self.stop_training:
+                ta, tea = self.train_accuracy_history[-1], self.test_accuracy_history[-1]
+                self.root.after(0, self.status_label.config, {"text": f"Fertig! Train Acc: {ta:.1f}% | Test Acc: {tea:.1f}% | Train Loss: {self.loss_history[-1]:.4f} | Test Loss: {self.test_loss_history[-1]:.4f}", "foreground": "green"})
             self.root.after(0, self.refresh_models)
             
         except Exception as e:
             self.root.after(0, self.status_label.config, {"text": f"Fehler: {str(e)}", "foreground": "red"})
         finally:
             self.is_training = False
+            self.stop_training = False
             self.root.after(0, self.start_button.config, {"state": "normal"})
+            self.root.after(0, self.stop_button.config, {"state": "disabled"})
     
-    def update_status(self, epoch, total_epochs, train_loss, val_accuracy, val_loss):
-        self.status_label.config(text=f"Training läuft... ({epoch}/{total_epochs}) | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | Val Accuracy: {val_accuracy:.2f}%", foreground="blue")
+    def update_status(self, epoch, total_epochs, train_loss, train_accuracy, test_loss, test_accuracy):
+        self.status_label.config(text=f"Epoche {epoch}/{total_epochs} | Train Acc: {train_accuracy:.1f}% | Test Acc: {test_accuracy:.1f}% | Train Loss: {train_loss:.4f} | Test Loss: {test_loss:.4f}", foreground="blue")
     
     def refresh_datasets(self):
         """Aktualisiert die Liste der verfügbaren Datasets"""
@@ -913,15 +910,15 @@ class TrainingGUI:
                 self.play_model_var.set("")
     
     def save_current_model(self):
-        """Speichert das aktuell trainierte Modell im Root-Ordner"""
+        """Speichert das aktuell trainierte Modell im models-Ordner"""
         if self.current_model is None:
             self.status_label.config(text="Kein Modell zum Speichern verfügbar", foreground="red")
             return
         
         try:
-            # Speichere im Root-Ordner
+            os.makedirs("models", exist_ok=True)
             filename_date_time = np.datetime64('now').astype(str).replace(':', '-').replace(' ', '_')
-            filename = f"model_{filename_date_time}.npz"
+            filepath = os.path.join("models", f"model_{filename_date_time}.npz")
             
             weights = {}
             for i, layer in enumerate(self.current_model.layers):
@@ -929,8 +926,8 @@ class TrainingGUI:
                     weights[f'layer_{i}_neuron_{j}_weights'] = neuron.weights
                     weights[f'layer_{i}_neuron_{j}_bias'] = neuron.bias
             
-            np.savez(filename, **weights)
-            self.status_label.config(text=f"Modell gespeichert: {filename}", foreground="green")
+            np.savez(filepath, **weights)
+            self.status_label.config(text=f"Modell gespeichert: {filepath}", foreground="green")
             self.refresh_models()
         except Exception as e:
             self.status_label.config(text=f"Fehler beim Speichern: {str(e)}", foreground="red")

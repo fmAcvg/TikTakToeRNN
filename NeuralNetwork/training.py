@@ -15,6 +15,7 @@ def train_on_data_set(model, current_position, correct_move, learning_rate, weig
     
     # Loss berechnen (Cross-Entropy)
     loss = -np.sum(correct_move * np.log(probs + 1e-15))
+    correct = (np.argmax(probs) == np.argmax(correct_move))
     
     # Backpropagation
     # Gradient nach Softmax (Cross-Entropy + Softmax)
@@ -41,6 +42,6 @@ def train_on_data_set(model, current_position, correct_move, learning_rate, weig
         
         grad = new_grad
     
-    return loss
+    return loss, correct
 
             
