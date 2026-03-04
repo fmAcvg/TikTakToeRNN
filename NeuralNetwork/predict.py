@@ -14,11 +14,27 @@ class NeuralNetwork:
             inputs = layer.forward(inputs)
         return inputs
 
-    def predict(self, board: np.ndarray):
-        output = self.forward(board)
-        # stable softmax
-        exps = np.exp(output - np.max(output))
+    def forward_logits(self, board: np.ndarray) -> np.ndarray:
+        """Forward pass mit linearem Output-Layer (Logits für Softmax)."""
+        if len(self.layers) == 0:
+            return np.array(board, dtype=float)
+
+        x = np.array(board, dtype=float)
+        for layer in self.layers[:-1]:
+            x = layer.forward(x)
+
+        output_layer = self.layers[-1]
+        logits = np.array([np.dot(neuron.weights, x) + neuron.bias for neuron in output_layer.neurons])
+        return logits
+
+    def predict_proba(self, board: np.ndarray) -> np.ndarray:
+        logits = self.forward_logits(board)
+        exps = np.exp(logits - np.max(logits))
         probs = exps / np.sum(exps)
+        return probs
+
+    def predict(self, board: np.ndarray):
+        probs = self.predict_proba(board)
         predicted_move = int(np.argmax(probs))
         return predicted_move, probs
 

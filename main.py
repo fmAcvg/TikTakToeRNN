@@ -919,11 +919,9 @@ class TrainingGUI:
                 test_loss = 0
                 test_correct = 0
                 for i in range(n_test):
-                    output = model.forward(test_boards[i])
-                    exps = np.exp(output - np.max(output))
-                    probs = exps / np.sum(exps)
+                    probs = model.predict_proba(test_boards[i])
                     test_loss -= np.sum(test_moves[i] * np.log(probs + 1e-15))
-                    if np.argmax(output) == np.argmax(test_moves[i]):
+                    if np.argmax(probs) == np.argmax(test_moves[i]):
                         test_correct += 1
                 
                 avg_test_loss = test_loss / n_test
