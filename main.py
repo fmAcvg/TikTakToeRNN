@@ -331,6 +331,16 @@ class TrainingGUI:
         self.player_turn = True  # True = Spieler (X), False = Modell (O)
         self.player_symbol = 1  # Spieler ist X (1)
         self.model_symbol = -1  # Modell ist O (-1)
+<<<<<<< HEAD
+
+        # Analyse/Hinweise für Spiel-Tab
+        self.game_dataset_path = None
+        self.game_dataset_lookup = {}
+        self.game_find_best_move_for_player = None
+        self.game_find_all_best_moves_for_player = None
+        self.game_get_current_player = None
+=======
+>>>>>>> origin/main
         
         self.setup_ui()
         
@@ -493,6 +503,16 @@ class TrainingGUI:
         # Status
         self.game_status_label = ttk.Label(model_frame, text="Lade ein Modell und starte ein neues Spiel", foreground="blue")
         self.game_status_label.grid(row=1, column=0, columnspan=8, pady=10)
+<<<<<<< HEAD
+
+        self.game_hint_label = ttk.Label(
+            model_frame,
+            text="Hinweise: Dataset/Minimax werden nach jedem Zug angezeigt.",
+            foreground="#555555"
+        )
+        self.game_hint_label.grid(row=2, column=0, columnspan=8, pady=(0, 8))
+=======
+>>>>>>> origin/main
         
         # Spielbrett
         board_frame = ttk.Frame(self.play_tab, padding="20")
@@ -507,6 +527,98 @@ class TrainingGUI:
             btn.grid(row=row, column=col, padx=2, pady=2)
             self.board_buttons.append(btn)
     
+<<<<<<< HEAD
+    def initialize_game_advisors(self):
+        """Lädt Dataset + Minimax-Helfer für Zug-Hinweise im Spiel-Tab."""
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("dataset", "NeuralNetwork/training-dataset/dataset.py")
+            dataset_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(dataset_module)
+
+            self.game_find_best_move_for_player = dataset_module.find_best_move_for_player
+            self.game_find_all_best_moves_for_player = dataset_module.find_all_best_moves_for_player
+            self.game_get_current_player = dataset_module.get_current_player
+        except Exception as e:
+            self.game_find_best_move_for_player = None
+            self.game_find_all_best_moves_for_player = None
+            self.game_get_current_player = None
+            self.game_hint_label.config(text=f"Hinweis-Fehler (Minimax): {str(e)}", foreground="red")
+            return
+
+        # Neuestes Dataset laden und als Lookup mappen: board -> Menge gelabelter Züge
+        datasets, _ = get_available_datasets()
+        if not datasets:
+            self.game_dataset_path = None
+            self.game_dataset_lookup = {}
+            self.game_hint_label.config(text="Kein Dataset gefunden: nur Minimax-Hinweise verfügbar.", foreground="orange")
+            return
+
+        self.game_dataset_path = datasets[0]
+        self.game_dataset_lookup = {}
+        try:
+            data = np.load(self.game_dataset_path)
+            for row in data:
+                board_key = tuple(row[:9].astype(int).tolist())
+                move = int(row[9])
+                if board_key not in self.game_dataset_lookup:
+                    self.game_dataset_lookup[board_key] = set()
+                self.game_dataset_lookup[board_key].add(move)
+        except Exception as e:
+            self.game_dataset_lookup = {}
+            self.game_hint_label.config(text=f"Dataset-Ladefehler: {str(e)}", foreground="red")
+            return
+
+    def update_board_hints(self):
+        """Markiert freie Felder gemäß Dataset-Label und Minimax-Optimalzügen."""
+        # Grundfarben für freie Felder zurücksetzen
+        for i in range(9):
+            if self.game_board[i] == 0:
+                self.board_buttons[i].config(bg="SystemButtonFace")
+
+        # Ohne Helfer keine Hinweise
+        if self.game_get_current_player is None or self.game_find_all_best_moves_for_player is None:
+            return
+
+        board_int = self.game_board.astype(int)
+        current_player = self.game_get_current_player(board_int)
+
+        # Dataset-Info für exakt diesen Spielstand (falls vorhanden)
+        board_key = tuple(board_int.tolist())
+        dataset_moves = sorted(list(self.game_dataset_lookup.get(board_key, set())))
+
+        # Minimax: alle optimalen Züge
+        minimax_moves = self.game_find_all_best_moves_for_player(board_int, current_player)
+        minimax_set = set(minimax_moves)
+        dataset_set = set(dataset_moves)
+
+        # Farbcode:
+        # - grün: nur Dataset-Label
+        # - orange: nur Minimax-optimal
+        # - violett: beides
+        # Nur für freie Felder markieren
+        for i in range(9):
+            if self.game_board[i] != 0:
+                continue
+            in_data = i in dataset_set
+            in_minimax = i in minimax_set
+            if in_data and in_minimax:
+                self.board_buttons[i].config(bg="#d79cff")
+            elif in_data:
+                self.board_buttons[i].config(bg="#98fb98")
+            elif in_minimax:
+                self.board_buttons[i].config(bg="#ffd580")
+
+        dataset_text = f"Dataset-Zug(e): {dataset_moves}" if dataset_moves else "Dataset-Zug(e): nicht im Dataset"
+        minimax_text = f"Minimax-optimal: {sorted(minimax_moves)}"
+        turn_text = "X am Zug" if current_player == 1 else "O am Zug"
+        self.game_hint_label.config(
+            text=f"{turn_text} | {dataset_text} | {minimax_text} | Farben: Grün=Dataset, Orange=Minimax, Lila=beides",
+            foreground="#333333"
+        )
+
+=======
+>>>>>>> origin/main
     def load_game_model(self):
         """Lädt das ausgewählte Modell für das Spiel"""
         try:
@@ -536,6 +648,10 @@ class TrainingGUI:
                 self.game_status_label.config(text="Fehler: Modell konnte nicht geladen werden", foreground="red")
                 return
             
+<<<<<<< HEAD
+            self.initialize_game_advisors()
+=======
+>>>>>>> origin/main
             self.game_status_label.config(text="Modell geladen! Klicke auf 'Neues Spiel' um zu beginnen.", foreground="green")
         except Exception as e:
             self.game_status_label.config(text=f"Fehler beim Laden: {str(e)}", foreground="red")
@@ -556,6 +672,10 @@ class TrainingGUI:
             btn.config(text="", state=tk.NORMAL, bg="SystemButtonFace")
         
         self.game_status_label.config(text="Dein Zug (X). Klicke auf ein Feld.", foreground="blue")
+<<<<<<< HEAD
+        self.update_board_hints()
+=======
+>>>>>>> origin/main
     
     def make_move(self, position):
         """Spieler macht einen Zug"""
@@ -581,6 +701,10 @@ class TrainingGUI:
         
         # Modell ist dran
         self.player_turn = False
+<<<<<<< HEAD
+        self.update_board_hints()
+=======
+>>>>>>> origin/main
         self.game_status_label.config(text="Modell denkt nach...", foreground="orange")
         self.root.after(100, self.model_move)  # Kurze Verzögerung für bessere UX
     
@@ -613,6 +737,10 @@ class TrainingGUI:
             # Spieler ist wieder dran
             self.player_turn = True
             self.game_status_label.config(text="Dein Zug (X). Klicke auf ein Feld.", foreground="blue")
+<<<<<<< HEAD
+            self.update_board_hints()
+=======
+>>>>>>> origin/main
             
         except Exception as e:
             self.game_status_label.config(text=f"Fehler beim Modell-Zug: {str(e)}", foreground="red")
@@ -652,6 +780,11 @@ class TrainingGUI:
             self.highlight_winning_line()
         else:
             self.game_status_label.config(text="🤝 Unentschieden!", foreground="orange")
+<<<<<<< HEAD
+
+        self.game_hint_label.config(text="Spiel beendet.", foreground="#555555")
+=======
+>>>>>>> origin/main
     
     def highlight_winning_line(self):
         """Hebt die gewinnende Linie hervor"""
@@ -810,11 +943,17 @@ class TrainingGUI:
                 test_loss = 0
                 test_correct = 0
                 for i in range(n_test):
+<<<<<<< HEAD
+                    probs = model.predict_proba(test_boards[i])
+                    test_loss -= np.sum(test_moves[i] * np.log(probs + 1e-15))
+                    if np.argmax(probs) == np.argmax(test_moves[i]):
+=======
                     output = model.forward(test_boards[i])
                     exps = np.exp(output - np.max(output))
                     probs = exps / np.sum(exps)
                     test_loss -= np.sum(test_moves[i] * np.log(probs + 1e-15))
                     if np.argmax(output) == np.argmax(test_moves[i]):
+>>>>>>> origin/main
                         test_correct += 1
                 
                 avg_test_loss = test_loss / n_test
