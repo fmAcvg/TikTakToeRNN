@@ -1,8 +1,8 @@
-from rnn.Layer import Layer
-from rnn.neuron import Neuron
+from .rnn.Layer import Layer
+from .rnn.neuron import Neuron
 import numpy as np
 
-save_weights = True
+save_weights = False
 
 
 class NeuralNetwork:
@@ -10,17 +10,11 @@ class NeuralNetwork:
         self.layers = layers
 
     def forward(self, inputs: np.ndarray) -> np.ndarray:
-        """
-        Run inputs through each layer sequentially and return raw outputs.
-        """
         for layer in self.layers:
             inputs = layer.forward(inputs)
         return inputs
 
     def predict(self, board: np.ndarray):
-        """
-        Return (predicted_move_index, probabilities) using softmax.
-        """
         output = self.forward(board)
         # stable softmax
         exps = np.exp(output - np.max(output))
@@ -28,21 +22,24 @@ class NeuralNetwork:
         predicted_move = int(np.argmax(probs))
         return predicted_move, probs
 
-    def save_model(self, filepath: str = "./weights/") -> None:
+    def save_model(self, filepath: str = "./models/") -> None:
         """
         Save weights and biases from each neuron into a .npz file.
 
         The filename mirrors the old script's datetime-based naming.
         """
+        import os
+        os.makedirs(filepath, exist_ok=True)
         weights = {}
         for i, layer in enumerate(self.layers):
             for j, neuron in enumerate(layer.neurons):
                 weights[f'layer_{i}_neuron_{j}_weights'] = neuron.weights
                 weights[f'layer_{i}_neuron_{j}_bias'] = neuron.bias
         filename_date_time = np.datetime64('now').astype(str).replace(':', '-').replace(' ', '_')
-        filename = f'model_{filename_date_time}.npz'
+        filename = os.path.join(filepath, f'model_{filename_date_time}.npz')
         try:
             np.savez(filename, **weights)
+            print(f"Model gespeichert: {filename}")
         except Exception as e:
             print(f"error saving model: {e}")
 
