@@ -3,9 +3,6 @@ import numpy as np
 from tqdm import tqdm
 
 
-# -----------------------------
-# Minimax-Funktionen
-# -----------------------------
 def check_winner(board):
     b = board.reshape(3, 3)
     lines = [
@@ -102,14 +99,18 @@ def generate_dataset(max_boards=5000):
 # Speichern
 # -----------------------------
 if __name__ == "__main__":
-    MAX_BOARDS = 5000
+    import os
+    
+    MAX_BOARDS = 1000
     dataset = generate_dataset(MAX_BOARDS)
-    print("Datensatz fertig. Anzahl Boards:", len(dataset))
-    np.save("tictactoe_dataset.npy", dataset)
-    print("Dataset gespeichert als tictactoe_dataset.npy")
-
-
-
+    num_samples = len(dataset)
+    print("Datensatz fertig. Anzahl Boards:", num_samples)
+    
+    # In training-dataset Ordner speichern
+    filename = f"tictactoe_dataset_{num_samples}.npy"
+    filepath = os.path.join(filename)
+    np.save(filepath, dataset)
+    print(f"Dataset gespeichert als {filepath}")
 
 
 
@@ -123,7 +124,6 @@ Für jeden Spielstand soll mit Minimax inklusive Alpha-Beta-Pruning der beste n�
 berechnet werden.Board und bester Zug sollen gemeinsam in einem NumPy-Array gespeichert werden.
 Die Generierung soll nach einer festen Anzahl von Spielständen abbrechen und den Fortschritt live anzeigen.
 Am Ende soll der Datensatz als .npy-Datei gespeichert werden.“'''
-
 
 
 

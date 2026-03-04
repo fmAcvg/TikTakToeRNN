@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def train_on_data_set(model, current_position, correct_move, learning_rate):
+def train_on_data_set(model, current_position, correct_move, learning_rate, weight_decay=0.0):
 
     # Forward pass (speichere alle Aktivierungen)
     activations = [current_position]
@@ -31,8 +31,9 @@ def train_on_data_set(model, current_position, correct_move, learning_rate):
             tanh_grad = neuron.tanh_derivative(neuron.z)
             delta = grad[j] * tanh_grad
             
-            # Gewichte und Bias updaten
-            neuron.weights -= learning_rate * delta * layer_input
+            # Gewichte und Bias updaten mit Weight Decay (L2-Regularisierung)
+            # Weight Decay: zusätzlicher Gradient = weight_decay * weights
+            neuron.weights -= learning_rate * (delta * layer_input + weight_decay * neuron.weights)
             neuron.bias -= learning_rate * delta
             
             # Gradient für vorherige Layer
