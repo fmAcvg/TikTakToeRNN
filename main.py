@@ -241,7 +241,7 @@ def test_model_on_random_boards(model, num_test_boards=100):
     spec = importlib.util.spec_from_file_location("dataset", "NeuralNetwork/training-dataset/dataset.py")
     dataset_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(dataset_module)
-    find_best_move_for_player = dataset_module.find_best_move_for_player
+    find_all_best_moves_for_player = dataset_module.find_all_best_moves_for_player
     get_current_player = dataset_module.get_current_player
     
     correct_predictions = 0
@@ -252,14 +252,14 @@ def test_model_on_random_boards(model, num_test_boards=100):
             continue
         
         player = get_current_player(board)
-        optimal_move = find_best_move_for_player(board, player)
-        if optimal_move is None:
+        optimal_moves = find_all_best_moves_for_player(board, player)
+        if not optimal_moves:
             continue
         
-        # Modell-Vorhersage
-        predicted_move, _ = model.predict(board.astype(float))
+        # Modell-Vorhersage (nur gültige Felder)
+        predicted_move, _ = model.predict_valid_move(board.astype(float))
         
-        if predicted_move == optimal_move:
+        if predicted_move in optimal_moves:
             correct_predictions += 1
         total_tests += 1
     
@@ -272,7 +272,7 @@ def test_on_realistic_games(model, num_test_boards=100):
     spec = importlib.util.spec_from_file_location("dataset", "NeuralNetwork/training-dataset/dataset.py")
     dataset_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(dataset_module)
-    find_best_move_for_player = dataset_module.find_best_move_for_player
+    find_all_best_moves_for_player = dataset_module.find_all_best_moves_for_player
     get_next_boards = dataset_module.get_next_boards
     check_winner = dataset_module.check_winner
     
@@ -295,14 +295,14 @@ def test_on_realistic_games(model, num_test_boards=100):
     total_tests = 0
     
     for board, player in test_states:
-        optimal_move = find_best_move_for_player(board, player)
-        if optimal_move is None:
+        optimal_moves = find_all_best_moves_for_player(board, player)
+        if not optimal_moves:
             continue
         
-        # Modell-Vorhersage
-        predicted_move, _ = model.predict(board.astype(float))
+        # Modell-Vorhersage (nur gültige Felder)
+        predicted_move, _ = model.predict_valid_move(board.astype(float))
         
-        if predicted_move == optimal_move:
+        if predicted_move in optimal_moves:
             correct_predictions += 1
         total_tests += 1
     
@@ -591,20 +591,10 @@ class TrainingGUI:
         
         # Modell-Vorhersage
         try:
-            predicted_move, probs = self.game_model.predict(self.game_board.astype(float))
-            
-            # Finde das beste freie Feld
-            valid_moves = [i for i in range(9) if self.game_board[i] == 0]
-            if not valid_moves:
+            predicted_move, _ = self.game_model.predict_valid_move(self.game_board.astype(float))
+            if predicted_move is None:
                 self.end_game(0)  # Unentschieden
                 return
-            
-            # Wenn vorhergesagter Zug ungültig ist, nimm das beste freie Feld
-            if predicted_move not in valid_moves:
-                # Sortiere nach Wahrscheinlichkeit und nimm das beste freie Feld
-                move_probs = [(i, probs[i]) for i in valid_moves]
-                move_probs.sort(key=lambda x: x[1], reverse=True)
-                predicted_move = move_probs[0][0]
             
             # Modell-Zug
             self.game_board[predicted_move] = self.model_symbol
