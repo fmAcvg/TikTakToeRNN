@@ -22,6 +22,16 @@ class NeuralNetwork:
         predicted_move = int(np.argmax(probs))
         return predicted_move, probs
 
+    def predict_valid_move(self, board: np.ndarray):
+        """Sagt den besten *gültigen* Zug voraus (nur leere Felder)."""
+        _, probs = self.predict(board)
+        valid_moves = np.where(board == 0)[0]
+        if len(valid_moves) == 0:
+            return None, probs
+
+        best_valid_move = int(valid_moves[np.argmax(probs[valid_moves])])
+        return best_valid_move, probs
+
     def save_model(self, filepath: str = "./models/") -> None:
         """
         Save weights and biases from each neuron into a .npz file.
@@ -79,4 +89,3 @@ if __name__ == '__main__':
 
     if save_weights:
         net.save_model()
-
