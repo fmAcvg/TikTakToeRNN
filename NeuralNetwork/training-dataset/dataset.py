@@ -93,6 +93,28 @@ def find_best_move_for_player(board, player):
     return best_move
 
 
+def find_all_best_moves_for_player(board, player):
+    """Alle optimalen Züge für den aktuellen Spieler (nicht nur den ersten Treffer)."""
+    empty_positions = np.where(board == 0)[0]
+    if len(empty_positions) == 0:
+        return []
+
+    move_scores = []
+    for i in empty_positions:
+        new_board = board.copy()
+        new_board[i] = player
+        next_player = -player
+        score = minimax(new_board, next_player)
+        move_scores.append((int(i), score))
+
+    if player == 1:
+        best_score = max(score for _, score in move_scores)
+    else:
+        best_score = min(score for _, score in move_scores)
+
+    return [move for move, score in move_scores if score == best_score]
+
+
 # -----------------------------
 # Datensatzgenerator mit Limit und integriertem Label
 # -----------------------------
@@ -161,6 +183,5 @@ Für jeden Spielstand soll mit Minimax inklusive Alpha-Beta-Pruning der beste n�
 berechnet werden.Board und bester Zug sollen gemeinsam in einem NumPy-Array gespeichert werden.
 Die Generierung soll nach einer festen Anzahl von Spielständen abbrechen und den Fortschritt live anzeigen.
 Am Ende soll der Datensatz als .npy-Datei gespeichert werden.“'''
-
 
 

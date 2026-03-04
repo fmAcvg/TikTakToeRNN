@@ -241,7 +241,7 @@ def test_model_on_random_boards(model, num_test_boards=100):
     spec = importlib.util.spec_from_file_location("dataset", "NeuralNetwork/training-dataset/dataset.py")
     dataset_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(dataset_module)
-    find_best_move_for_player = dataset_module.find_best_move_for_player
+    find_all_best_moves_for_player = dataset_module.find_all_best_moves_for_player
     get_current_player = dataset_module.get_current_player
     
     correct_predictions = 0
@@ -252,14 +252,14 @@ def test_model_on_random_boards(model, num_test_boards=100):
             continue
         
         player = get_current_player(board)
-        optimal_move = find_best_move_for_player(board, player)
-        if optimal_move is None:
+        optimal_moves = find_all_best_moves_for_player(board, player)
+        if not optimal_moves:
             continue
         
-        # Modell-Vorhersage
-        predicted_move, _ = model.predict(board.astype(float))
+        # Modell-Vorhersage (nur gültige Felder)
+        predicted_move, _ = model.predict_valid_move(board.astype(float))
         
-        if predicted_move == optimal_move:
+        if predicted_move in optimal_moves:
             correct_predictions += 1
         total_tests += 1
     
@@ -272,7 +272,7 @@ def test_on_realistic_games(model, num_test_boards=100):
     spec = importlib.util.spec_from_file_location("dataset", "NeuralNetwork/training-dataset/dataset.py")
     dataset_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(dataset_module)
-    find_best_move_for_player = dataset_module.find_best_move_for_player
+    find_all_best_moves_for_player = dataset_module.find_all_best_moves_for_player
     get_next_boards = dataset_module.get_next_boards
     check_winner = dataset_module.check_winner
     
@@ -295,14 +295,14 @@ def test_on_realistic_games(model, num_test_boards=100):
     total_tests = 0
     
     for board, player in test_states:
-        optimal_move = find_best_move_for_player(board, player)
-        if optimal_move is None:
+        optimal_moves = find_all_best_moves_for_player(board, player)
+        if not optimal_moves:
             continue
         
-        # Modell-Vorhersage
-        predicted_move, _ = model.predict(board.astype(float))
+        # Modell-Vorhersage (nur gültige Felder)
+        predicted_move, _ = model.predict_valid_move(board.astype(float))
         
-        if predicted_move == optimal_move:
+        if predicted_move in optimal_moves:
             correct_predictions += 1
         total_tests += 1
     
@@ -331,6 +331,13 @@ class TrainingGUI:
         self.player_turn = True  # True = Spieler (X), False = Modell (O)
         self.player_symbol = 1  # Spieler ist X (1)
         self.model_symbol = -1  # Modell ist O (-1)
+
+        # Analyse/Hinweise für Spiel-Tab
+        self.game_dataset_path = None
+        self.game_dataset_lookup = {}
+        self.game_find_best_move_for_player = None
+        self.game_find_all_best_moves_for_player = None
+        self.game_get_current_player = None
         
         self.setup_ui()
         
@@ -493,6 +500,13 @@ class TrainingGUI:
         # Status
         self.game_status_label = ttk.Label(model_frame, text="Lade ein Modell und starte ein neues Spiel", foreground="blue")
         self.game_status_label.grid(row=1, column=0, columnspan=8, pady=10)
+
+        self.game_hint_label = ttk.Label(
+            model_frame,
+            text="Hinweise: Dataset/Minimax werden nach jedem Zug angezeigt.",
+            foreground="#555555"
+        )
+        self.game_hint_label.grid(row=2, column=0, columnspan=8, pady=(0, 8))
         
         # Spielbrett
         board_frame = ttk.Frame(self.play_tab, padding="20")
@@ -507,6 +521,95 @@ class TrainingGUI:
             btn.grid(row=row, column=col, padx=2, pady=2)
             self.board_buttons.append(btn)
     
+    def initialize_game_advisors(self):
+        """Lädt Dataset + Minimax-Helfer für Zug-Hinweise im Spiel-Tab."""
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("dataset", "NeuralNetwork/training-dataset/dataset.py")
+            dataset_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(dataset_module)
+
+            self.game_find_best_move_for_player = dataset_module.find_best_move_for_player
+            self.game_find_all_best_moves_for_player = dataset_module.find_all_best_moves_for_player
+            self.game_get_current_player = dataset_module.get_current_player
+        except Exception as e:
+            self.game_find_best_move_for_player = None
+            self.game_find_all_best_moves_for_player = None
+            self.game_get_current_player = None
+            self.game_hint_label.config(text=f"Hinweis-Fehler (Minimax): {str(e)}", foreground="red")
+            return
+
+        # Neuestes Dataset laden und als Lookup mappen: board -> Menge gelabelter Züge
+        datasets, _ = get_available_datasets()
+        if not datasets:
+            self.game_dataset_path = None
+            self.game_dataset_lookup = {}
+            self.game_hint_label.config(text="Kein Dataset gefunden: nur Minimax-Hinweise verfügbar.", foreground="orange")
+            return
+
+        self.game_dataset_path = datasets[0]
+        self.game_dataset_lookup = {}
+        try:
+            data = np.load(self.game_dataset_path)
+            for row in data:
+                board_key = tuple(row[:9].astype(int).tolist())
+                move = int(row[9])
+                if board_key not in self.game_dataset_lookup:
+                    self.game_dataset_lookup[board_key] = set()
+                self.game_dataset_lookup[board_key].add(move)
+        except Exception as e:
+            self.game_dataset_lookup = {}
+            self.game_hint_label.config(text=f"Dataset-Ladefehler: {str(e)}", foreground="red")
+            return
+
+    def update_board_hints(self):
+        """Markiert freie Felder gemäß Dataset-Label und Minimax-Optimalzügen."""
+        # Grundfarben für freie Felder zurücksetzen
+        for i in range(9):
+            if self.game_board[i] == 0:
+                self.board_buttons[i].config(bg="SystemButtonFace")
+
+        # Ohne Helfer keine Hinweise
+        if self.game_get_current_player is None or self.game_find_all_best_moves_for_player is None:
+            return
+
+        board_int = self.game_board.astype(int)
+        current_player = self.game_get_current_player(board_int)
+
+        # Dataset-Info für exakt diesen Spielstand (falls vorhanden)
+        board_key = tuple(board_int.tolist())
+        dataset_moves = sorted(list(self.game_dataset_lookup.get(board_key, set())))
+
+        # Minimax: alle optimalen Züge
+        minimax_moves = self.game_find_all_best_moves_for_player(board_int, current_player)
+        minimax_set = set(minimax_moves)
+        dataset_set = set(dataset_moves)
+
+        # Farbcode:
+        # - grün: nur Dataset-Label
+        # - orange: nur Minimax-optimal
+        # - violett: beides
+        # Nur für freie Felder markieren
+        for i in range(9):
+            if self.game_board[i] != 0:
+                continue
+            in_data = i in dataset_set
+            in_minimax = i in minimax_set
+            if in_data and in_minimax:
+                self.board_buttons[i].config(bg="#d79cff")
+            elif in_data:
+                self.board_buttons[i].config(bg="#98fb98")
+            elif in_minimax:
+                self.board_buttons[i].config(bg="#ffd580")
+
+        dataset_text = f"Dataset-Zug(e): {dataset_moves}" if dataset_moves else "Dataset-Zug(e): nicht im Dataset"
+        minimax_text = f"Minimax-optimal: {sorted(minimax_moves)}"
+        turn_text = "X am Zug" if current_player == 1 else "O am Zug"
+        self.game_hint_label.config(
+            text=f"{turn_text} | {dataset_text} | {minimax_text} | Farben: Grün=Dataset, Orange=Minimax, Lila=beides",
+            foreground="#333333"
+        )
+
     def load_game_model(self):
         """Lädt das ausgewählte Modell für das Spiel"""
         try:
@@ -536,6 +639,7 @@ class TrainingGUI:
                 self.game_status_label.config(text="Fehler: Modell konnte nicht geladen werden", foreground="red")
                 return
             
+            self.initialize_game_advisors()
             self.game_status_label.config(text="Modell geladen! Klicke auf 'Neues Spiel' um zu beginnen.", foreground="green")
         except Exception as e:
             self.game_status_label.config(text=f"Fehler beim Laden: {str(e)}", foreground="red")
@@ -556,6 +660,7 @@ class TrainingGUI:
             btn.config(text="", state=tk.NORMAL, bg="SystemButtonFace")
         
         self.game_status_label.config(text="Dein Zug (X). Klicke auf ein Feld.", foreground="blue")
+        self.update_board_hints()
     
     def make_move(self, position):
         """Spieler macht einen Zug"""
@@ -581,6 +686,7 @@ class TrainingGUI:
         
         # Modell ist dran
         self.player_turn = False
+        self.update_board_hints()
         self.game_status_label.config(text="Modell denkt nach...", foreground="orange")
         self.root.after(100, self.model_move)  # Kurze Verzögerung für bessere UX
     
@@ -591,20 +697,10 @@ class TrainingGUI:
         
         # Modell-Vorhersage
         try:
-            predicted_move, probs = self.game_model.predict(self.game_board.astype(float))
-            
-            # Finde das beste freie Feld
-            valid_moves = [i for i in range(9) if self.game_board[i] == 0]
-            if not valid_moves:
+            predicted_move, _ = self.game_model.predict_valid_move(self.game_board.astype(float))
+            if predicted_move is None:
                 self.end_game(0)  # Unentschieden
                 return
-            
-            # Wenn vorhergesagter Zug ungültig ist, nimm das beste freie Feld
-            if predicted_move not in valid_moves:
-                # Sortiere nach Wahrscheinlichkeit und nimm das beste freie Feld
-                move_probs = [(i, probs[i]) for i in valid_moves]
-                move_probs.sort(key=lambda x: x[1], reverse=True)
-                predicted_move = move_probs[0][0]
             
             # Modell-Zug
             self.game_board[predicted_move] = self.model_symbol
@@ -623,6 +719,7 @@ class TrainingGUI:
             # Spieler ist wieder dran
             self.player_turn = True
             self.game_status_label.config(text="Dein Zug (X). Klicke auf ein Feld.", foreground="blue")
+            self.update_board_hints()
             
         except Exception as e:
             self.game_status_label.config(text=f"Fehler beim Modell-Zug: {str(e)}", foreground="red")
@@ -662,6 +759,8 @@ class TrainingGUI:
             self.highlight_winning_line()
         else:
             self.game_status_label.config(text="🤝 Unentschieden!", foreground="orange")
+
+        self.game_hint_label.config(text="Spiel beendet.", foreground="#555555")
     
     def highlight_winning_line(self):
         """Hebt die gewinnende Linie hervor"""
@@ -820,11 +919,9 @@ class TrainingGUI:
                 test_loss = 0
                 test_correct = 0
                 for i in range(n_test):
-                    output = model.forward(test_boards[i])
-                    exps = np.exp(output - np.max(output))
-                    probs = exps / np.sum(exps)
+                    probs = model.predict_proba(test_boards[i])
                     test_loss -= np.sum(test_moves[i] * np.log(probs + 1e-15))
-                    if np.argmax(output) == np.argmax(test_moves[i]):
+                    if np.argmax(probs) == np.argmax(test_moves[i]):
                         test_correct += 1
                 
                 avg_test_loss = test_loss / n_test

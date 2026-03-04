@@ -10,17 +10,42 @@ class NeuralNetwork:
         self.layers = layers
 
     def forward(self, inputs: np.ndarray) -> np.ndarray:
-        for layer in self.layers:
-            inputs = layer.forward(inputs)
-        return inputs
+        """Kompatibler Forward: liefert Output-Logits (lineare Ausgabeschicht)."""
+        return self.forward_logits(inputs)
+
+    def forward_logits(self, board: np.ndarray) -> np.ndarray:
+        """Forward pass mit linearem Output-Layer (Logits für Softmax)."""
+        if len(self.layers) == 0:
+            return np.array(board, dtype=float)
+
+        x = np.array(board, dtype=float)
+        for layer in self.layers[:-1]:
+            x = layer.forward(x)
+
+        output_layer = self.layers[-1]
+        logits = np.array([np.dot(neuron.weights, x) + neuron.bias for neuron in output_layer.neurons])
+        return logits
+
+    def predict_proba(self, board: np.ndarray) -> np.ndarray:
+        logits = self.forward_logits(board)
+        exps = np.exp(logits - np.max(logits))
+        probs = exps / np.sum(exps)
+        return probs
 
     def predict(self, board: np.ndarray):
-        output = self.forward(board)
-        # stable softmax
-        exps = np.exp(output - np.max(output))
-        probs = exps / np.sum(exps)
+        probs = self.predict_proba(board)
         predicted_move = int(np.argmax(probs))
         return predicted_move, probs
+
+    def predict_valid_move(self, board: np.ndarray):
+        """Sagt den besten *gültigen* Zug voraus (nur leere Felder)."""
+        _, probs = self.predict(board)
+        valid_moves = np.where(board == 0)[0]
+        if len(valid_moves) == 0:
+            return None, probs
+
+        best_valid_move = int(valid_moves[np.argmax(probs[valid_moves])])
+        return best_valid_move, probs
 
     def save_model(self, filepath: str = "./models/") -> None:
         """
@@ -79,4 +104,3 @@ if __name__ == '__main__':
 
     if save_weights:
         net.save_model()
-
