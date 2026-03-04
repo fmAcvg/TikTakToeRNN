@@ -331,7 +331,7 @@ class TrainingGUI:
         self.player_turn = True  # True = Spieler (X), False = Modell (O)
         self.player_symbol = 1  # Spieler ist X (1)
         self.model_symbol = -1  # Modell ist O (-1)
-<<<<<<< HEAD
+
 
         # Analyse/Hinweise für Spiel-Tab
         self.game_dataset_path = None
@@ -339,8 +339,7 @@ class TrainingGUI:
         self.game_find_best_move_for_player = None
         self.game_find_all_best_moves_for_player = None
         self.game_get_current_player = None
-=======
->>>>>>> origin/main
+
         
         self.setup_ui()
         
@@ -503,7 +502,7 @@ class TrainingGUI:
         # Status
         self.game_status_label = ttk.Label(model_frame, text="Lade ein Modell und starte ein neues Spiel", foreground="blue")
         self.game_status_label.grid(row=1, column=0, columnspan=8, pady=10)
-<<<<<<< HEAD
+
 
         self.game_hint_label = ttk.Label(
             model_frame,
@@ -511,8 +510,7 @@ class TrainingGUI:
             foreground="#555555"
         )
         self.game_hint_label.grid(row=2, column=0, columnspan=8, pady=(0, 8))
-=======
->>>>>>> origin/main
+
         
         # Spielbrett
         board_frame = ttk.Frame(self.play_tab, padding="20")
@@ -527,7 +525,7 @@ class TrainingGUI:
             btn.grid(row=row, column=col, padx=2, pady=2)
             self.board_buttons.append(btn)
     
-<<<<<<< HEAD
+
     def initialize_game_advisors(self):
         """Lädt Dataset + Minimax-Helfer für Zug-Hinweise im Spiel-Tab."""
         try:
@@ -617,8 +615,7 @@ class TrainingGUI:
             foreground="#333333"
         )
 
-=======
->>>>>>> origin/main
+
     def load_game_model(self):
         """Lädt das ausgewählte Modell für das Spiel"""
         try:
@@ -648,10 +645,7 @@ class TrainingGUI:
                 self.game_status_label.config(text="Fehler: Modell konnte nicht geladen werden", foreground="red")
                 return
             
-<<<<<<< HEAD
-            self.initialize_game_advisors()
-=======
->>>>>>> origin/main
+
             self.game_status_label.config(text="Modell geladen! Klicke auf 'Neues Spiel' um zu beginnen.", foreground="green")
         except Exception as e:
             self.game_status_label.config(text=f"Fehler beim Laden: {str(e)}", foreground="red")
@@ -672,10 +666,7 @@ class TrainingGUI:
             btn.config(text="", state=tk.NORMAL, bg="SystemButtonFace")
         
         self.game_status_label.config(text="Dein Zug (X). Klicke auf ein Feld.", foreground="blue")
-<<<<<<< HEAD
-        self.update_board_hints()
-=======
->>>>>>> origin/main
+
     
     def make_move(self, position):
         """Spieler macht einen Zug"""
@@ -701,10 +692,7 @@ class TrainingGUI:
         
         # Modell ist dran
         self.player_turn = False
-<<<<<<< HEAD
-        self.update_board_hints()
-=======
->>>>>>> origin/main
+
         self.game_status_label.config(text="Modell denkt nach...", foreground="orange")
         self.root.after(100, self.model_move)  # Kurze Verzögerung für bessere UX
     
@@ -737,10 +725,7 @@ class TrainingGUI:
             # Spieler ist wieder dran
             self.player_turn = True
             self.game_status_label.config(text="Dein Zug (X). Klicke auf ein Feld.", foreground="blue")
-<<<<<<< HEAD
-            self.update_board_hints()
-=======
->>>>>>> origin/main
+
             
         except Exception as e:
             self.game_status_label.config(text=f"Fehler beim Modell-Zug: {str(e)}", foreground="red")
@@ -780,11 +765,7 @@ class TrainingGUI:
             self.highlight_winning_line()
         else:
             self.game_status_label.config(text="🤝 Unentschieden!", foreground="orange")
-<<<<<<< HEAD
 
-        self.game_hint_label.config(text="Spiel beendet.", foreground="#555555")
-=======
->>>>>>> origin/main
     
     def highlight_winning_line(self):
         """Hebt die gewinnende Linie hervor"""
@@ -943,17 +924,6 @@ class TrainingGUI:
                 test_loss = 0
                 test_correct = 0
                 for i in range(n_test):
-<<<<<<< HEAD
-                    probs = model.predict_proba(test_boards[i])
-                    test_loss -= np.sum(test_moves[i] * np.log(probs + 1e-15))
-                    if np.argmax(probs) == np.argmax(test_moves[i]):
-=======
-                    output = model.forward(test_boards[i])
-                    exps = np.exp(output - np.max(output))
-                    probs = exps / np.sum(exps)
-                    test_loss -= np.sum(test_moves[i] * np.log(probs + 1e-15))
-                    if np.argmax(output) == np.argmax(test_moves[i]):
->>>>>>> origin/main
                         test_correct += 1
                 
                 avg_test_loss = test_loss / n_test

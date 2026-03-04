@@ -10,9 +10,8 @@ class NeuralNetwork:
         self.layers = layers
 
     def forward(self, inputs: np.ndarray) -> np.ndarray:
-        for layer in self.layers:
-            inputs = layer.forward(inputs)
-        return inputs
+        """Kompatibler Forward: liefert Output-Logits (lineare Ausgabeschicht)."""
+        return self.forward_logits(inputs)
 
     def forward_logits(self, board: np.ndarray) -> np.ndarray:
         """Forward pass mit linearem Output-Layer (Logits für Softmax)."""
