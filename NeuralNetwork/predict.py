@@ -10,42 +10,40 @@ class NeuralNetwork:
         self.layers = layers
 
     def forward(self, inputs: np.ndarray) -> np.ndarray:
-        """Kompatibler Forward: liefert Output-Logits (lineare Ausgabeschicht)."""
-        return self.forward_logits(inputs)
-
-    def forward_logits(self, board: np.ndarray) -> np.ndarray:
-        """Forward pass mit linearem Output-Layer (Logits für Softmax)."""
+        """
+        Forward pass mit linearem Output-Layer (Logits).
+        Hidden-Layer: tanh
+        Output-Layer: linear
+        """
         if len(self.layers) == 0:
-            return np.array(board, dtype=float)
+            return np.array(inputs, dtype=float)
 
-        x = np.array(board, dtype=float)
+        x = np.array(inputs, dtype=float)
+
+        # Hidden layers
         for layer in self.layers[:-1]:
             x = layer.forward(x)
 
+        # Output layer (linear logits, KEIN tanh)
         output_layer = self.layers[-1]
         logits = np.array([np.dot(neuron.weights, x) + neuron.bias for neuron in output_layer.neurons])
         return logits
 
-    def predict_proba(self, board: np.ndarray) -> np.ndarray:
-        logits = self.forward_logits(board)
-        exps = np.exp(logits - np.max(logits))
+    def predict(self, board: np.ndarray, legal_mask=None):
+        output = self.forward(board)
+        # stable softmax
+        exps = np.exp(output - np.max(output))
         probs = exps / np.sum(exps)
-        return probs
-
-    def predict(self, board: np.ndarray):
-        probs = self.predict_proba(board)
-        predicted_move = int(np.argmax(probs))
+        
+        if legal_mask is not None:
+            # Set illegal moves to -inf before argmax
+            masked_output = output.copy()
+            masked_output[legal_mask == 0] = -np.inf
+            predicted_move = int(np.argmax(masked_output))
+        else:
+            predicted_move = int(np.argmax(probs))
+        
         return predicted_move, probs
-
-    def predict_valid_move(self, board: np.ndarray):
-        """Sagt den besten *gültigen* Zug voraus (nur leere Felder)."""
-        _, probs = self.predict(board)
-        valid_moves = np.where(board == 0)[0]
-        if len(valid_moves) == 0:
-            return None, probs
-
-        best_valid_move = int(valid_moves[np.argmax(probs[valid_moves])])
-        return best_valid_move, probs
 
     def save_model(self, filepath: str = "./models/") -> None:
         """
@@ -71,9 +69,11 @@ class NeuralNetwork:
 
 def create_layer(input_size: int, num_neurons: int) -> Layer:
     neurons = []
+    # Xavier/Glorot initialization for tanh
+    limit = np.sqrt(6 / (input_size + num_neurons))
     for _ in range(num_neurons):
-        weights = np.random.randn(input_size)
-        bias = np.random.randn()
+        weights = np.random.uniform(-limit, limit, input_size)
+        bias = np.zeros(1)[0]
         neurons.append(Neuron(weights, bias))
     return Layer(neurons)
 
@@ -104,3 +104,4 @@ if __name__ == '__main__':
 
     if save_weights:
         net.save_model()
+
