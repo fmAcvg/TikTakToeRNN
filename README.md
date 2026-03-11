@@ -8,7 +8,6 @@ python main.py
 
 ## CLI-Training (train_improved.py)
 
-Du kannst `train_improved.py` jetzt direkt mit Hyperparametern und Modellnamen starten.
 
 Beispiel:
 
@@ -30,18 +29,17 @@ Wichtige Parameter:
 - `--dataset-path` Pfad zu `.npy` Dataset
 - `--model-name` Benutzerdefinierter Name für das gespeicherte Modell
 
-Alle Optionen anzeigen:
+Alle optionen anzeigen:
 
 python train_improved.py --help
 
 ## Workflow (4 Tabs)
+Tool führt dich durch die komplette Pipeline:
 
-Das Tool führt dich durch die komplette Pipeline:
-
-1. **Training** - Konfiguriere und trainiere das Modell
-2. **Dataset** - Generiere oder lade Trainingsdaten  
-3. **Testing** - Teste die Modellgenauigkeit
-4. **Spielen** - Spielen gegen das trainierte Netzwerk
+1. **Training**: Konfiguriere und trainiere das Modell
+2. **Dataset**: Generiere oder lade Trainingsdaten  
+3. **Testing**: Teste die Modellgenauigkeit
+4. **Spielen**: Spielen gegen das trainierte Netzwerk
 
 Jeder Tab baut auf den Ergebnissen des vorherigen auf.
 
